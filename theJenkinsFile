@@ -1,4 +1,4 @@
-@Library('Shared') _
+@Library('CommonLib') _
 pipeline {
     agent any
     
@@ -7,16 +7,16 @@ pipeline {
     }
     
     parameters {
-        string(name: 'FRONTEND_DOCKER_TAG', defaultValue: '', description: 'Setting docker image for latest push')
-        string(name: 'BACKEND_DOCKER_TAG', defaultValue: '', description: 'Setting docker image for latest push')
+        string(name: 'Docker_F_Tag', defaultValue: '', description: 'docker image for latest push')
+        string(name: 'Docker_B_Tag', defaultValue: '', description: 'docker image for latest push')
     }
     
     stages {
         stage("Validate Parameters") {
             steps {
                 script {
-                    if (params.FRONTEND_DOCKER_TAG == '' || params.BACKEND_DOCKER_TAG == '') {
-                        error("FRONTEND_DOCKER_TAG and BACKEND_DOCKER_TAG must be provided.")
+                    if (params.Docker_F_Tag == '' || params.Docker_B_Tag == '') {
+                        error("Docker_F_Tag and Docker_B_Tag must be provided.")
                     }
                 }
             }
@@ -32,7 +32,7 @@ pipeline {
         stage('Git: Code Checkout') {
             steps {
                 script{
-                    code_checkout("https://github.com/devopspracticess/Wanderlust-Mega-Project.git","main")
+                    code_checkout("https://github.com/mrvanny/the-traveler.git","main")
                 }
             }
         }
@@ -56,7 +56,7 @@ pipeline {
         stage("SonarQube: Code Analysis"){
             steps{
                 script{
-                    sonarqube_analysis("Sonar","wanderlust","wanderlust")
+                    sonarqube_analysis("Sonar","thetraveler","thetraveler")
                 }
             }
         }
@@ -74,8 +74,8 @@ pipeline {
                 stage("Backend env setup"){
                     steps {
                         script{
-                            dir("Automations"){
-                                sh "bash updatebackendnew.sh"
+                            dir("ResourceUpdate"){
+                                sh "bash updatebackendenv.sh"
                             }
                         }
                     }
@@ -84,8 +84,8 @@ pipeline {
                 stage("Frontend env setup"){
                     steps {
                         script{
-                            dir("Automations"){
-                                sh "bash updatefrontendnew.sh"
+                            dir("ResourceUpdate"){
+                                sh "bash updatefrontendenv.sh"
                             }
                         }
                     }
@@ -97,11 +97,11 @@ pipeline {
             steps{
                 script{
                         dir('backend'){
-                            docker_build("wanderlust-backend-beta","${params.BACKEND_DOCKER_TAG}","thedocker77")
+                            docker_build("thetraveler-backend-beta","${params.Docker_B_Tag}","theroot77")
                         }
                     
                         dir('frontend'){
-                            docker_build("wanderlust-frontend-beta","${params.FRONTEND_DOCKER_TAG}","thedocker77")
+                            docker_build("thetraveler-frontend-beta","${params.Docker_F_Tag}","theroot77")
                         }
                 }
             }
@@ -110,20 +110,20 @@ pipeline {
         stage("Docker: Push to DockerHub"){
             steps{
                 script{
-                    docker_push("wanderlust-backend-beta", params.BACKEND_DOCKER_TAG)
-                    docker_push("wanderlust-frontend-beta", params.FRONTEND_DOCKER_TAG)
+                    docker_push("thetraveler-backend-beta","${params.Docker_B_Tag}") 
+                    docker_push("thetraveler-frontend-beta","${params.Docker_F_Tag}")
                 }
             }
         }
     }
-   post {
-    success {
-        archiveArtifacts artifacts: 'dependency-check-report/*.xml', fingerprint: true
-
-        build job: "Wanderlust-CD", parameters: [
-            string(name: 'FRONTEND_DOCKER_TAG', value: params.FRONTEND_DOCKER_TAG),
-            string(name: 'BACKEND_DOCKER_TAG', value: params.BACKEND_DOCKER_TAG)
-        ]
+    post{
+        success{
+            archiveArtifacts artifacts: 'dependency-check-report/*.xml', fingerprint: true
+            build job: "Traveler-CD", parameters: [
+                string(name: 'Docker_F_Tag', value: "${params.Docker_F_Tag}"),
+                string(name: 'Docker_B_Tag', value: "${params.Docker_B_Tag}")
+            ]
+        }
     }
 }
-}
+
